@@ -1,0 +1,18 @@
+contorller input
+keyboard input
+mouse input
+
+controller output
+keyboard output
+mouse output
+
+scroll output smooth
+
+multiple binding
+
+program sensitive
+
+profile creatable
+
+delay addable
+
