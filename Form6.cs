@@ -19,7 +19,7 @@ namespace HotKeyDemo2
         private void button1_Click(object sender, EventArgs e)
         {
             // 1) Focus the textbox so the key goes there
-            textBox2.Focus();
+            //textBox2.Focus();
 
             // 2) Simulate pressing the 'A' key
             KeyboardInput.SendKeyPress(Keys.A);

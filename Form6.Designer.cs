@@ -52,7 +52,7 @@
             // 
             // Form6
             // 
-            this.ClientSize = new System.Drawing.Size(1096, 345);
+            this.ClientSize = new System.Drawing.Size(148, 91);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.textBox2);
             this.Name = "Form6";

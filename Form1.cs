@@ -146,5 +146,10 @@ namespace HotKeyDemo2
             Form5 f5 = new Form5();
             f5.Show();
         }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            
+        }
     }
 }

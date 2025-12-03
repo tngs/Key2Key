@@ -19,6 +19,8 @@ namespace HotKeyDemo2
 
             Application.ApplicationExit += OnAppExit;
             KeyboardHook.Install();
+            KeyboardPrinter.Attach();
+            KeyboardRemapper.Attach();
             Application.Run(new Form6());
         }
         private static void OnAppExit(object sender, EventArgs e)
