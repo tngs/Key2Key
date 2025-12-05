@@ -8,19 +8,23 @@ using System.Windows.Forms;
 
 namespace HotKeyDemo2
 {
+    /// <summary>
+    /// Loads config.json and returns per-program key mappings.
+    /// </summary>
     internal static class ProgramChecker
     {
         private static RootConfig _rootConfig;
         private static ProfileConfig _activeProfile;
 
-        // Maps "From" Keys -> "To" Keys OR block
-        public class ProgramMapping
+        /// <summary>
+        /// Result: From key -> sequence of actions.
+        /// </summary>
+        internal class ProgramMapping
         {
-            public Dictionary<Keys, Keys> Remaps = new Dictionary<Keys, Keys>();
-            public HashSet<Keys> BlockOnly = new HashSet<Keys>();
+            public Dictionary<Keys, List<RemapAction>> Sequences
+                = new Dictionary<Keys, List<RemapAction>>();
         }
 
-        // Win32: foreground window -> process
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
 
@@ -44,30 +48,77 @@ namespace HotKeyDemo2
 
             string json = File.ReadAllText(path);
             Debug.WriteLine("[ProgramChecker] Raw JSON length: " + json.Length);
+            //Debug.WriteLine("[ProgramChecker] Raw JSON       : " + json);
+            TryDeserializeConfig(json);
+            ResolveActiveProfile();
+        }
 
+        /// <summary>
+        /// Returns mapping for the foreground process (or empty mapping).
+        /// Called on each key down.
+        /// </summary>
+        public static ProgramMapping GetMappingForCurrentProgram()
+        {
+            ProgramMapping result = new ProgramMapping();
+
+            if (_activeProfile == null)
+                return result;
+
+            string exeName = GetForegroundExeName();
+            if (exeName == null)
+                return result;
+
+            exeName = exeName.ToLowerInvariant();
+            Debug.WriteLine("[ProgramChecker] Foreground EXE: " + exeName);
+
+            ProgramConfig programConfig = FindProgramConfig(exeName);
+            if (programConfig == null)
+                return result;
+
+            BuildMappingFromProgram(result, programConfig);
+            return result;
+        }
+
+        // ===== Helpers =====
+
+        private static void TryDeserializeConfig(string json)
+        {
             try
             {
                 _rootConfig = JsonSerializer.Deserialize<RootConfig>(json);
 
-                Debug.WriteLine("[ProgramChecker] _rootConfig\n: " + _rootConfig);
+
+                //------test: pretty print deserialized config-----
+                //if (_rootConfig != null)
+                //{
+                //    string pretty = JsonSerializer.Serialize(
+                //        _rootConfig,
+                //        new JsonSerializerOptions { WriteIndented = true });
+
+                //    Debug.WriteLine("[ProgramChecker] Deserialized config:\n" + pretty);
+                //}
+                //------end test------------------------------------
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("[ProgramChecker] Failed to deserialize: " + ex.Message);
                 _rootConfig = new RootConfig();
             }
-
             if (_rootConfig == null)
             {
-                Debug.WriteLine("[ProgramChecker] Root config is null.");
                 _rootConfig = new RootConfig();
             }
+        }
 
-            if (string.IsNullOrEmpty(_rootConfig.ActiveProfile) ||                                  //chk if AP exist
-                !_rootConfig.Profiles.TryGetValue(_rootConfig.ActiveProfile, out _activeProfile))   //chk if AP valid
+        private static void ResolveActiveProfile()
+        {
+            if (string.IsNullOrEmpty(_rootConfig.ActiveProfile) ||
+                !_rootConfig.Profiles.TryGetValue(_rootConfig.ActiveProfile, out _activeProfile))
             {
                 Debug.WriteLine("[ProgramChecker] ActiveProfile not set or not found. Using first profile if any.");
-                foreach (var kv in _rootConfig.Profiles)
+
+                _activeProfile = null;
+                foreach (KeyValuePair<string, ProfileConfig> kv in _rootConfig.Profiles)
                 {
                     _activeProfile = kv.Value;
                     Debug.WriteLine("[ProgramChecker] Using profile: " + kv.Key);
@@ -77,31 +128,15 @@ namespace HotKeyDemo2
             else
             {
                 Debug.WriteLine("[ProgramChecker] Active profile: " + _rootConfig.ActiveProfile);
+                //Debug.WriteLine("[ProgramChecker] _activeProfile: " + _activeProfile);
             }
         }
 
-        public static ProgramMapping GetMappingForCurrentProgram()
+        private static ProgramConfig FindProgramConfig(string exeName)
         {
-            ProgramMapping result = new ProgramMapping();
-
-            if (_activeProfile == null)
-            {
-                // No profile loaded
-                return result;
-            }
-
-            string exeName = GetForegroundExeName();
-            if (exeName == null)
-            {
-                return result;
-            }
-
-            exeName = exeName.ToLowerInvariant();
-            Debug.WriteLine("[ProgramChecker] Foreground EXE: " + exeName);
-
             ProgramConfig programConfig = null;
 
-            // 1) Exact match: "notepad.exe"
+            // exact match (no wildcard)
             foreach (KeyValuePair<string, ProgramConfig> kv in _activeProfile.Programs)
             {
                 if (!string.IsNullOrEmpty(kv.Key) &&
@@ -114,55 +149,37 @@ namespace HotKeyDemo2
                 }
             }
 
-            // 2) If no exact match, try wildcard "*.exe" (very basic)
+            // fallback: "*.exe"
             if (programConfig == null)
             {
-                foreach (KeyValuePair<string, ProgramConfig> kv in _activeProfile.Programs)
+                ProgramConfig wildcard;
+                if (_activeProfile.Programs.TryGetValue("*.exe", out wildcard))
                 {
-                    if (kv.Key == "*.exe")
-                    {
-                        programConfig = kv.Value;
-                        Debug.WriteLine("[ProgramChecker] Using wildcard profile: " + kv.Key);
-                        break;
-                    }
+                    programConfig = wildcard;
+                    Debug.WriteLine("[ProgramChecker] Using wildcard profile: *.exe");
                 }
             }
 
-            // 3) Build mapping from ProgramConfig
-            if (programConfig != null)
+            return programConfig;
+        }
+
+        private static void BuildMappingFromProgram(ProgramMapping result, ProgramConfig programConfig)
+        {
+            foreach (RemapRule rule in programConfig.Remaps)
             {
-                foreach (RemapRule rule in programConfig.Remaps)
+                if (string.IsNullOrEmpty(rule.From))
+                    continue;
+
+                Keys fromKey;
+                if (!Enum.TryParse(rule.From, out fromKey))
                 {
-                    if (string.IsNullOrEmpty(rule.From))
-                        continue;
-
-                    Keys fromKey;
-                    if (!Enum.TryParse(rule.From, out fromKey))
-                    {
-                        Debug.WriteLine("[ProgramChecker] Invalid From key: " + rule.From);
-                        continue;
-                    }
-
-                    if (string.IsNullOrEmpty(rule.To))
-                    {
-                        // empty To = block this key
-                        result.BlockOnly.Add(fromKey);
-                    }
-                    else
-                    {
-                        Keys toKey;
-                        if (!Enum.TryParse(rule.To, out toKey))
-                        {
-                            Debug.WriteLine("[ProgramChecker] Invalid To key: " + rule.To);
-                            continue;
-                        }
-
-                        result.Remaps[fromKey] = toKey;
-                    }
+                    Debug.WriteLine("[ProgramChecker] Invalid From key: " + rule.From);
+                    continue;
                 }
-            }
 
-            return result;
+                // Overwrite if duplicate; last rule wins.
+                result.Sequences[fromKey] = rule.To ?? new List<RemapAction>();
+            }
         }
 
         private static string GetForegroundExeName()
@@ -180,7 +197,6 @@ namespace HotKeyDemo2
             {
                 using (Process proc = Process.GetProcessById((int)pid))
                 {
-                    // ProcessName usually without .exe, so add it
                     string name = proc.ProcessName;
                     if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                         name += ".exe";

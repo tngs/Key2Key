@@ -3,31 +3,38 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace HotKeyDemo2
 {
     internal static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
+        //The main entry point for the application.
         [STAThread]
         static void Main()
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Application.ApplicationExit += OnAppExit;
+            // 1) Load config.json ONCE
+            ProgramChecker.LoadConfig("config.json");
+
+            // 2) Install global hooks
             KeyboardHook.Install();
-            KeyboardPrinter.Attach();
-            KeyboardRemapper.Attach();
+            MouseHook.Install();
+
+            // 3) Attach your logic handlers
+            KeyboardOutput.Attach();
+            MouseOutput.Attach();
+
             Application.Run(new Form6());
         }
         private static void OnAppExit(object sender, EventArgs e)
         {
-            // Make sure the global hook from Form5 is removed
-            KeyboardHook.Uninstall();
             Form5.UninstallHookSafe();
+
+            KeyboardHook.Uninstall();
+            MouseHook.Uninstall();
         }
     }
 }

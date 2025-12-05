@@ -4,10 +4,8 @@ using System.Windows.Forms;
 
 namespace HotKeyDemo2
 {
-    /// <summary>
-    /// Helper for sending synthetic keyboard input (key down / key up).
-    /// You can call this from your hook code or controller code.
-    /// </summary>
+    // Helper for sending synthetic keyboard input (key down / key up).
+    // You can call this from your hook code or controller code.
     internal static class KeyboardInput
     {
         // Legacy, but simple and fine for your use case.
@@ -25,27 +23,25 @@ namespace HotKeyDemo2
         //Scan code = “physical key at this position on the keyboard”
         //Virtual key (VK) = “logical key meaning: ‘A’, ‘Left Arrow’, ‘Space’…”
 
-        /// <summary>
-        /// Send a virtual key down event.
-        /// </summary>
+        
+        // Send a virtual key down event.
         public static void SendKeyDown(Keys key)
         {
             byte vk = (byte)key;
             keybd_event(vk, 0, 0, UIntPtr.Zero);
         }
 
-        /// <summary>
-        /// Send a virtual key up event.
-        /// </summary>
+        
+        // Send a virtual key up event.
+        
         public static void SendKeyUp(Keys key)
         {
             byte vk = (byte)key;
             keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         }
 
-        /// <summary>
-        /// Press and release a key (simple tap).
-        /// </summary>
+        
+        // Press and release a key (simple tap).
         public static void SendKeyPress(Keys key, int releaseDelayMs = 10)
         {
             SendKeyDown(key);
@@ -53,18 +49,16 @@ namespace HotKeyDemo2
             SendKeyUp(key);
         }
 
-        /// <summary>
-        /// Your original style: one function, keyUp flag.
-        /// </summary>
+        
+        // Your original style: one function, keyUp flag.
         public static void SendMappedKey(Keys key, bool keyUp)//nor version
         {
             byte vk = (byte)key;
             keybd_event(vk, 0, keyUp ? KEYEVENTF_KEYUP : 0, UIntPtr.Zero);
         }
 
-        /// <summary>
-        /// Send a chord like Ctrl + key (e.g., Ctrl+C).
-        /// </summary>
+        
+        // Send a chord like Ctrl + key (e.g., Ctrl+C).
         public static void SendChord(Keys modifier, Keys key, int releaseDelayMs = 10)
         {
             // Down: modifier, then key

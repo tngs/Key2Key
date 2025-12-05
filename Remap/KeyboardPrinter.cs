@@ -59,8 +59,8 @@ internal static class KeyboardPrinter
                 Debug.WriteLine($"\nDW: {key} [{(IsPureModifier(key) ? "yes" : "no")}]");
                 if (!IsPureModifier(key))
                 {
-                    string combo = KeyboardOutput.DescribeKeyCombo(key, mods);
-                    Debug.WriteLine($"[ENTRY] {combo}");
+                    //string combo = KeyboardOutput.DescribeKeyCombo(key, mods);
+                    //Debug.WriteLine($"[ENTRY] {combo}");
                 }
             }
         }
@@ -71,8 +71,8 @@ internal static class KeyboardPrinter
             Debug.WriteLine($"\nUP: {key} [{(IsPureModifier(key) ? "yes" : "no")}]");
             if (!IsPureModifier(key))
             {
-                string combo = KeyboardOutput.DescribeKeyCombo(key, mods);
-                Debug.WriteLine($"[ENTRY] {combo}");
+                //string combo = KeyboardOutput.DescribeKeyCombo(key, mods);
+                //Debug.WriteLine($"[ENTRY] {combo}");
             }
         }
         return false;
